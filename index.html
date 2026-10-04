@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pipeline Desk</title>
+<meta name="description" content="A content pipeline board for a ghostwriting shop: pieces by stage, client, owner and deadline, with a monthly pace view.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html { color-scheme: light dark; }
+body { margin: 0; }
+/* Layout: a production desk. Header + tabs, then a five-stage board that scrolls sideways on phones, or a monthly stats page with pace against goal. */
+:root {
+  --bg: #EDEFF2;
+  --surface: #FFFFFF;
+  --surface-2: #F5F6F8;
+  --ink: #12161C;
+  --ink-2: #4A5260;
+  --ink-3: #6E7787;
+  --line: #D9DDE4;
+  --accent: #0E7C6B;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #D6EFEA;
+  --warn: #9A5B00;
+  --warn-soft: #FBEBCF;
+  --bad: #B83232;
+  --bad-soft: #F9DEDE;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1317; --surface: #171C22; --surface-2: #1C222A; --ink: #E8ECF1; --ink-2: #AAB3C0; --ink-3: #8993A3;
+    --line: #2A323C; --accent: #3CCBB1; --accent-ink: #06201B; --accent-soft: #12332D;
+    --warn: #E3A33B; --warn-soft: #3A2C10; --bad: #F08A8A; --bad-soft: #3D1C1C; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1317; --surface: #171C22; --surface-2: #1C222A; --ink: #E8ECF1; --ink-2: #AAB3C0; --ink-3: #8993A3;
+  --line: #2A323C; --accent: #3CCBB1; --accent-ink: #06201B; --accent-soft: #12332D;
+  --warn: #E3A33B; --warn-soft: #3A2C10; --bad: #F08A8A; --bad-soft: #3D1C1C; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  padding-inline: 16px; padding-block: 20px 32px;
+}
+@media (min-width: 720px) { body { padding-inline: 28px; } }
+#app { max-width: 1280px; margin-inline: auto; display: flex; flex-direction: column; gap: 16px; }
+h1, h2, h3, p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px; }
+.brand h1 { font-family: var(--font-display); font-weight: 700; font-size: 28px; letter-spacing: -0.02em; line-height: 1.1; }
+.sub { color: var(--ink-3); font-size: 12px; margin-top: 4px; }
+.top-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.tabs { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 2px; }
+.tab { border: 0; background: transparent; padding: 6px 14px; border-radius: 6px; cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.danger { color: var(--bad); }
+.link { border: 0; background: none; padding: 0; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link:hover { color: var(--ink); }
+
+.note { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--ink-2); font-size: 13px; }
+.note .sp { flex: 1 1 auto; }
+
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.filters select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; max-width: 100%; }
+.pill { font-family: var(--font-mono); font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(232px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 10px; align-items: start; scroll-snap-type: x proximity; }
+.col { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; scroll-snap-align: start; min-height: 120px; }
+.col.over { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 2px 4px; }
+.col-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.col-head span { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.col.posted .col-head h2 { color: var(--accent); }
+.empty { color: var(--ink-3); font-size: 13px; padding: 8px 2px; }
+.more { color: var(--ink-3); font-size: 12px; font-family: var(--font-mono); padding: 2px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-width: 0; }
+.card:hover { border-color: var(--ink-3); }
+.card.dragging { opacity: 0.45; }
+.card.is-late { border-color: var(--bad); }
+.c-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.client { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.due { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+.due.late { color: var(--bad); font-weight: 500; }
+.due.today { color: var(--warn); font-weight: 500; }
+.card h3 { font-weight: 600; font-size: 14px; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+.c-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chip { font-size: 12px; color: var(--ink-2); }
+.owner { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 10px; font-weight: 600; flex: none; }
+.views { font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+.mv { display: none; width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 12px; }
+.card:hover .mv, .card:focus-within .mv { display: block; }
+@media (hover: none) { .mv { display: block; } }
+
+.stats { display: flex; flex-direction: column; gap: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.big { font-family: var(--font-display); font-weight: 700; font-size: 38px; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.big small { font-family: var(--font-body); font-weight: 400; font-size: 14px; color: var(--ink-2); letter-spacing: 0; display: inline-flex; align-items: center; gap: 6px; }
+.goal-in { width: 7ch; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-family: var(--font-mono); font-size: 13px; }
+.bar { height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); position: relative; }
+.bar .fill { height: 100%; background: var(--accent); border-radius: inherit; }
+.bar .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 2px; }
+.hint { color: var(--ink-2); font-size: 13px; }
+.hint b { color: var(--ink); font-weight: 600; }
+.panel h2 { font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+
+.chart { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; height: 150px; align-items: end; position: relative; border-bottom: 1px solid var(--line); }
+.day { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 1px; }
+.seg-done { background: var(--accent); border-radius: 2px 2px 0 0; min-height: 0; }
+.seg-open { border: 1px dashed var(--ink-3); border-radius: 2px 2px 0 0; background: transparent; }
+.seg-open.late { border-color: var(--bad); background: var(--bad-soft); }
+.pace { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--ink-2); pointer-events: none; }
+.pace span { position: absolute; right: 0; top: -17px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-2); background: var(--surface); padding-inline: 4px; }
+.ticks { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); margin-top: 4px; }
+.ticks span { white-space: nowrap; }
+.ticks .now { color: var(--accent); font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend .a { background: var(--accent); }
+.legend .b { border: 1px dashed var(--ink-3); }
+.legend .c { border: 1px dashed var(--bad); background: var(--bad-soft); }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px; border-bottom: 1px solid var(--line); }
+th.n, td.n { text-align: right; font-family: var(--font-mono); }
+td.bad { color: var(--bad); font-weight: 500; }
+td.dim { color: var(--ink-3); }
+.name-in { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; width: 100%; min-width: 9ch; }
+.name-in:hover, .name-in:focus { border-color: var(--line); background: var(--surface-2); }
+
+.foot { color: var(--ink-3); font-size: 12px; padding-top: 4px; }
+
+.scrim { position: fixed; inset: 0; background: rgba(8, 10, 14, 0.5); display: flex; justify-content: flex-end; z-index: 10; }
+.sheet { background: var(--surface); width: min(440px, 100%); height: 100%; overflow-y: auto; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; border-left: 1px solid var(--line); }
+.sheet h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.field input, .field select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .grid2 { grid-template-columns: 1fr; } }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.actions .sp { flex: 1 1 auto; }
+@media (prefers-reduced-motion: no-preference) { .card, .btn { transition: border-color 0.12s; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const STATUSES = [
+  { id: 'idea', label: 'Ideas' },
+  { id: 'draft', label: 'Drafting' },
+  { id: 'review', label: 'Internal review' },
+  { id: 'client', label: 'With client' },
+  { id: 'posted', label: 'Posted' }
+];
+const PLATFORMS = ['LinkedIn', 'X', 'Email'];
+const FORMATS = ['Text post', 'Carousel', 'Thread', 'Newsletter', 'Voice-note draft'];
+const CLIENTS = ['SaaS founder, Series A', 'VC partner', 'Bestselling author', 'Agency owner', 'Podcast host', 'YC-batch founder'];
+const KEY = 'pipeline-desk-v1';
+const POSTED_VISIBLE = 6;
+
+const pad = n => String(n).padStart(2, '0');
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const fromIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = fromIso(s); d.setDate(d.getDate() + n); return iso(d); };
+const diff = (a, b) => Math.round((fromIso(a) - fromIso(b)) / 86400000);
+const TODAY = iso(new Date());
+const MONTH = TODAY.slice(0, 7);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const initials = n => (n || '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 2).replace(/\.?0+$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'k' : String(n);
+const num = n => n.toLocaleString('en-IN');
+
+// [title, client, owner, platform, format, status, due offset in days, impressions, posted a day late]
+const SEED = [
+  ['Why we killed our free tier', 0, 0, 0, 0, 'posted', -4, 41200],
+  ['The 3 emails that closed our first 10 customers', 0, 1, 2, 3, 'posted', -4, 8900],
+  ['What I tell every first-time fund manager', 1, 0, 0, 0, 'posted', -4, 63800],
+  ['Chapter 4, turned into a carousel', 2, 2, 0, 1, 'posted', -3, 27400],
+  ['Hiring a sales lead too early', 3, 1, 1, 2, 'posted', -3, 15600, 1],
+  ['Notes from a 90 minute podcast recording', 4, 2, 0, 0, 'posted', -3, 38100],
+  ['How we got into YC with no revenue', 5, 0, 0, 0, 'posted', -2, 52300],
+  ['Revenue is a lagging indicator', 0, 1, 1, 0, 'posted', -2, 9100],
+  ['Five rules for cold outreach', 3, 2, 0, 1, 'posted', -2, 31900],
+  ["The book I almost didn't write", 2, 0, 0, 0, 'posted', -1, 46700],
+  ['Founder letter: Q3 recap', 1, 3, 2, 3, 'posted', -1, 6400, 1],
+  ['Pricing is a product decision', 0, 2, 0, 0, 'posted', -1, 22800],
+  ['What changed after we hired a COO', 4, 1, 1, 2, 'posted', 0, 12100],
+  ['A bad quarter, explained', 5, 3, 0, 0, 'posted', 0, 8700],
+  ['Why most podcasts stop at episode 12', 4, 1, 0, 0, 'client', 0],
+  ['Raising a seed in a down market', 0, 0, 0, 0, 'client', 1],
+  ['Portfolio founders ask me this every week', 1, 3, 1, 2, 'client', 1],
+  ['The unglamorous side of 8 figures', 3, 2, 0, 0, 'review', 0],
+  ['Chapter 7 carousel', 2, 1, 0, 1, 'review', 2],
+  ['Weekly newsletter #41', 1, 3, 2, 3, 'review', 2],
+  ["What I'd do differently at 50 customers", 0, 0, 0, 0, 'review', -1],
+  ['Voice note: why we pivoted', 5, 2, 0, 4, 'draft', 1],
+  ['Hiring your first designer', 3, 1, 1, 2, 'draft', 2],
+  ['How I prep for a board meeting', 1, 0, 0, 0, 'draft', 3],
+  ['Behind the launch week', 4, 3, 0, 1, 'draft', 3],
+  ['Our onboarding teardown', 0, 2, 0, 1, 'draft', 4],
+  ['Letter to a first-time author', 2, 1, 2, 3, 'draft', 5],
+  ['What founders get wrong about LinkedIn', 5, 2, 0, 0, 'idea', 6],
+  ['The 20-hour rule for founders', 3, 3, 0, 0, 'idea', 6],
+  ['A year of weekly investor updates', 1, 0, 0, 0, 'idea', 7],
+  ['The sales call I would redo', 0, 1, 1, 2, 'idea', 7],
+  ['Sponsor read lessons', 4, 2, 0, 0, 'idea', 8],
+  ['Why second-time founders move faster', 5, 0, 0, 0, 'idea', 9],
+  ['Newsletter #42 outline', 1, 3, 2, 3, 'idea', 9],
+  ['Q4 content calendar', 2, 1, 0, 1, 'idea', 10]
+];
+
+let uid = 1;
+function seedPieces() {
+  const monthStart = MONTH + '-01';
+  return SEED.map(r => {
+    const due = addDays(TODAY, r[6]);
+    const p = {
+      id: 'p' + (uid++), title: r[0], client: CLIENTS[r[1]], owner: r[2], platform: PLATFORMS[r[3]], format: FORMATS[r[4]],
+      status: r[5], due: due < monthStart && r[5] === 'posted' ? monthStart : due, impressions: r[7] || 0, postedOn: null
+    };
+    if (p.status === 'posted') { p.postedOn = addDays(p.due, r[8] || 0); if (p.postedOn > TODAY) p.postedOn = TODAY; }
+    return p;
+  });
+}
+function freshState() {
+  return { pieces: seedPieces(), team: ['Aditya', 'Hire 1', 'Hire 2', 'Hire 3'], goals: { pieces: 100, impressions: 3000000 }, view: 'board', nextId: uid };
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const s = JSON.parse(raw); if (s && Array.isArray(s.pieces)) { uid = s.nextId || uid; return s; } }
+  } catch (e) {}
+  return freshState();
+}
+let state = load();
+const ui = { owner: 'all', client: 'all', editing: undefined, confirmDelete: false, confirmClear: false };
+function save() {
+  state.nextId = uid;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function dueInfo(p) {
+  if (p.status === 'posted') return { text: p.due.slice(5).split('-').reverse().join('/'), cls: '' };
+  const d = diff(p.due, TODAY);
+  if (d < 0) return { text: (-d) + 'd late', cls: 'late' };
+  if (d === 0) return { text: 'Today', cls: 'today' };
+  if (d === 1) return { text: 'Tomorrow', cls: '' };
+  return { text: fromIso(p.due).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }), cls: '' };
+}
+const isOverdue = p => p.status !== 'posted' && p.due < TODAY;
+const monthLabel = fromIso(TODAY).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+const postedThisMonth = () => state.pieces.filter(p => p.status === 'posted' && p.postedOn && p.postedOn.slice(0, 7) === MONTH);
+
+function header() {
+  const shipped = postedThisMonth().length;
+  return '<header class="top"><div class="brand"><h1>Pipeline Desk</h1><p class="sub mono">' + esc(monthLabel) + ' · ' + shipped + ' of ' + num(state.goals.pieces) + ' pieces shipped</p></div>' +
+    '<div class="top-actions"><div class="tabs" role="tablist">' +
+    ['board', 'stats'].map(v => '<button class="tab" role="tab" aria-selected="' + (state.view === v) + '" data-action="view" data-view="' + v + '">' + (v === 'board' ? 'Board' : 'This month') + '</button>').join('') +
+    '</div><button class="btn primary" data-action="new">New piece</button></div></header>' +
+    '<div class="note"><span>Sample data, so you can see it working. Drag cards between stages, or change anything.</span><span class="sp"></span>' +
+    '<button class="link" data-action="reset">Reset sample</button>' +
+    '<button class="link" data-action="clear">' + (ui.confirmClear ? 'Click again to delete everything' : 'Clear all') + '</button></div>';
+}
+
+function card(p) {
+  const di = dueInfo(p);
+  const stageOpts = STATUSES.map(s => '<option value="' + s.id + '"' + (s.id === p.status ? ' selected' : '') + '>' + s.label + '</option>').join('');
+  return '<article class="card' + (isOverdue(p) ? ' is-late' : '') + '" draggable="true" tabindex="0" data-id="' + p.id + '" data-action="edit">' +
+    '<div class="c-top"><span class="client">' + esc(p.client) + '</span><span class="due ' + di.cls + '">' + esc(di.text) + '</span></div>' +
+    '<h3>' + esc(p.title) + '</h3>' +
+    '<div class="c-meta"><span class="chip">' + esc(p.platform) + ' · ' + esc(p.format) + '</span>' +
+    (p.status === 'posted' && p.impressions ? '<span class="views">' + fmt(p.impressions) + ' views</span>' : '') +
+    '<span class="owner" title="' + esc(state.team[p.owner]) + '">' + esc(initials(state.team[p.owner])) + '</span></div>' +
+    '<select class="mv" data-action="move" data-id="' + p.id + '" aria-label="Move to stage">' + stageOpts + '</select></article>';
+}
+
+function board() {
+  const filtered = state.pieces.filter(p => (ui.owner === 'all' || String(p.owner) === ui.owner) && (ui.client === 'all' || p.client === ui.client));
+  const clients = [...new Set(state.pieces.map(p => p.client))].sort();
+  const overdue = state.pieces.filter(isOverdue).length;
+  const dueToday = state.pieces.filter(p => p.status !== 'posted' && p.due === TODAY).length;
+  const filters = '<div class="filters">' +
+    '<select id="flt-owner" data-action="filter-owner" aria-label="Filter by owner"><option value="all">Everyone</option>' + state.team.map((n, i) => '<option value="' + i + '"' + (ui.owner === String(i) ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
+    '<select id="flt-client" data-action="filter-client" aria-label="Filter by client"><option value="all">All clients</option>' + clients.map(c => '<option value="' + esc(c) + '"' + (ui.client === c ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '</select>' +
+    (overdue ? '<span class="pill bad">' + overdue + ' overdue</span>' : '<span class="pill">Nothing overdue</span>') +
+    (dueToday ? '<span class="pill warn">' + dueToday + ' due today</span>' : '') + '</div>';
+  const cols = STATUSES.map(s => {
+    let items = filtered.filter(p => p.status === s.id);
+    items.sort((a, b) => s.id === 'posted' ? (b.postedOn || '').localeCompare(a.postedOn || '') : a.due.localeCompare(b.due));
+    const total = items.length;
+    if (s.id === 'posted') items = items.slice(0, POSTED_VISIBLE);
+    return '<section class="col ' + s.id + '" data-stage="' + s.id + '"><div class="col-head"><h2>' + s.label + '</h2><span>' + total + '</span></div>' +
+      (items.length ? items.map(card).join('') : '<p class="empty">Nothing here. Drop a card to move it.</p>') +
+      (total > items.length ? '<p class="more">+ ' + (total - items.length) + ' earlier</p>' : '') + '</section>';
+  }).join('');
+  return filters + '<div class="board">' + cols + '</div>';
+}
+
+function stats() {
+  const g = state.goals;
+  const dim = new Date(+MONTH.slice(0, 4), +MONTH.slice(5, 7), 0).getDate();
+  const dom = +TODAY.slice(8);
+  const done = postedThisMonth();
+  const shipped = done.length;
+  const impr = done.reduce((a, p) => a + (p.impressions || 0), 0);
+  const paceFrac = dom / dim;
+  const onTime = done.filter(p => p.postedOn <= p.due).length;
+  const late = shipped - onTime;
+  const overdue = state.pieces.filter(isOverdue).length;
+  const left = Math.max(0, g.pieces - shipped);
+  const daysLeft = dim - dom + 1;
+  const need = left / daysLeft;
+  const open = state.pieces.filter(p => p.status !== 'posted' && p.due.slice(0, 7) === MONTH && p.due >= TODAY).length;
+  const pct = (v, t) => Math.min(100, Math.round(v / t * 100));
+  const expectedPieces = Math.round(g.pieces * paceFrac);
+
+  const piecesTile = '<div class="panel"><span class="label">Pieces shipped</span><div class="big">' + shipped + '<small>of <input class="goal-in" id="goal-pieces" type="number" min="1" value="' + g.pieces + '" data-action="goal-pieces" aria-label="Pieces goal for the month"></small></div>' +
+    '<div class="bar" role="img" aria-label="' + shipped + ' of ' + g.pieces + ' shipped"><div class="fill" style="width:' + pct(shipped, g.pieces) + '%"></div><div class="tick" style="left:' + (paceFrac * 100) + '%" title="Where you should be today"></div></div>' +
+    '<p class="hint">' + (shipped >= expectedPieces ? '<b>' + (shipped - expectedPieces) + ' ahead</b> of the line for day ' + dom + '.' : '<b>' + (expectedPieces - shipped) + ' behind</b> the line for day ' + dom + '.') +
+    ' ' + (left ? 'Needs <b>' + need.toFixed(1) + ' a day</b> from here. ' + open + ' more already have a due date this month.' : 'Goal reached.') + '</p></div>';
+
+  const imprTile = '<div class="panel"><span class="label">Impressions</span><div class="big">' + fmt(impr) + '<small>of <input class="goal-in" id="goal-impr" type="number" min="1" step="100000" value="' + g.impressions + '" data-action="goal-impr" aria-label="Impressions goal for the month"></small></div>' +
+    '<div class="bar" role="img" aria-label="' + fmt(impr) + ' of ' + fmt(g.impressions) + ' impressions"><div class="fill" style="width:' + pct(impr, g.impressions) + '%"></div><div class="tick" style="left:' + (paceFrac * 100) + '%" title="Where you should be today"></div></div>' +
+    '<p class="hint">Counted from the views you enter on posted pieces. Average so far: <b>' + (shipped ? fmt(Math.round(impr / shipped)) : '0') + '</b> per piece.</p></div>';
+
+  const timeTile = '<div class="panel"><span class="label">Deadlines</span><div class="big">' + (shipped ? Math.round(onTime / shipped * 100) : 100) + '%<small>shipped on time</small></div>' +
+    '<div class="bar" role="img" aria-label="On time rate"><div class="fill" style="width:' + (shipped ? pct(onTime, shipped) : 100) + '%"></div></div>' +
+    '<p class="hint"><b>' + late + '</b> shipped late this month. <b' + (overdue ? ' style="color:var(--bad)"' : '') + '>' + overdue + '</b> open ' + (overdue === 1 ? 'piece is' : 'pieces are') + ' past due right now.</p></div>';
+
+  const days = [];
+  for (let d = 1; d <= dim; d++) {
+    const ds = MONTH + '-' + pad(d);
+    days.push({ d, ds, done: done.filter(p => p.postedOn === ds).length, open: state.pieces.filter(p => p.status !== 'posted' && p.due === ds).length });
+  }
+  const dailyGoal = g.pieces / dim;
+  const max = Math.max(dailyGoal + 1, ...days.map(x => x.done + x.open), 3);
+  const h = v => (v / max * 100) + '%';
+  const chart = '<div class="chart" role="img" aria-label="Pieces posted and due per day this month">' +
+    days.map(x => '<div class="day" title="' + x.ds + ': ' + x.done + ' posted, ' + x.open + ' open">' +
+      (x.open ? '<div class="seg-open' + (x.ds < TODAY ? ' late' : '') + '" style="height:' + h(x.open) + '"></div>' : '') +
+      (x.done ? '<div class="seg-done" style="height:' + h(x.done) + '"></div>' : '') + '</div>').join('') +
+    '<div class="pace" style="bottom:' + h(dailyGoal) + '"><span>' + dailyGoal.toFixed(1) + ' a day for goal</span></div></div>' +
+    '<div class="ticks">' + days.map(x => '<span class="' + (x.ds === TODAY ? 'now' : '') + '">' + (x.d === 1 || x.d % 7 === 1 || x.ds === TODAY ? x.d : '') + '</span>').join('') + '</div>';
+
+  const clients = [...new Set(state.pieces.map(p => p.client))].sort();
+  const clientRows = clients.map(c => {
+    const ps = state.pieces.filter(p => p.client === c);
+    const po = ps.filter(p => p.status === 'posted' && p.postedOn && p.postedOn.slice(0, 7) === MONTH).length;
+    const op = ps.filter(p => p.status !== 'posted').length;
+    const od = ps.filter(isOverdue).length;
+    return '<tr><td>' + esc(c) + '</td><td class="n">' + po + '</td><td class="n ' + (op ? '' : 'dim') + '">' + op + '</td><td class="n ' + (od ? 'bad' : 'dim') + '">' + od + '</td></tr>';
+  }).join('');
+  const ownerRows = state.team.map((n, i) => {
+    const ps = state.pieces.filter(p => p.owner === i);
+    const po = ps.filter(p => p.status === 'posted' && p.postedOn && p.postedOn.slice(0, 7) === MONTH).length;
+    const op = ps.filter(p => p.status !== 'posted').length;
+    const od = ps.filter(isOverdue).length;
+    return '<tr><td><input class="name-in" id="team-' + i + '" data-action="rename" data-i="' + i + '" value="' + esc(n) + '" aria-label="Team member ' + (i + 1) + ' name"></td><td class="n">' + po + '</td><td class="n ' + (op ? '' : 'dim') + '">' + op + '</td><td class="n ' + (od ? 'bad' : 'dim') + '">' + od + '</td></tr>';
+  }).join('');
+
+  return '<div class="stats"><div class="tiles">' + piecesTile + imprTile + timeTile + '</div>' +
+    '<div class="panel"><h2>Day by day</h2>' + chart +
+    '<div class="legend"><span><i class="a"></i>Posted</span><span><i class="b"></i>Due, still open</span><span><i class="c"></i>Due earlier, still open</span></div></div>' +
+    '<div class="two"><div class="panel"><h2>By client</h2><div class="tbl"><table><thead><tr><th>Client</th><th class="n">Posted</th><th class="n">Open</th><th class="n">Overdue</th></tr></thead><tbody>' + clientRows + '</tbody></table></div></div>' +
+    '<div class="panel"><h2>By person</h2><div class="tbl"><table><thead><tr><th>Name</th><th class="n">Posted</th><th class="n">Open</th><th class="n">Overdue</th></tr></thead><tbody>' + ownerRows + '</tbody></table></div></div></div></div>';
+}
+
+function sheet() {
+  const isNew = ui.editing === null;
+  const p = isNew ? { title: '', client: CLIENTS[0], owner: 0, platform: 'LinkedIn', format: 'Text post', status: 'idea', due: addDays(TODAY, 3), impressions: 0 } : state.pieces.find(x => x.id === ui.editing);
+  if (!p) return '';
+  const opt = (arr, cur) => arr.map(v => '<option' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join('');
+  const clients = [...new Set([...CLIENTS, ...state.pieces.map(x => x.client)])];
+  return '<div class="scrim" data-action="close-scrim"><form class="sheet" id="sheet-form" role="dialog" aria-modal="true" aria-label="' + (isNew ? 'New piece' : 'Edit piece') + '">' +
+    '<h2>' + (isNew ? 'New piece' : 'Edit piece') + '</h2>' +
+    '<div class="field"><label for="f-title">Working title</label><input id="f-title" required maxlength="140" value="' + esc(p.title) + '"></div>' +
+    '<div class="field"><label for="f-client">Client</label><input id="f-client" list="client-list" required value="' + esc(p.client) + '"><datalist id="client-list">' + clients.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist></div>' +
+    '<div class="grid2"><div class="field"><label for="f-owner">Owner</label><select id="f-owner">' + state.team.map((n, i) => '<option value="' + i + '"' + (i === p.owner ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></div>' +
+    '<div class="field"><label for="f-status">Stage</label><select id="f-status">' + STATUSES.map(s => '<option value="' + s.id + '"' + (s.id === p.status ? ' selected' : '') + '>' + s.label + '</option>').join('') + '</select></div></div>' +
+    '<div class="grid2"><div class="field"><label for="f-platform">Where it goes</label><select id="f-platform">' + opt(PLATFORMS, p.platform) + '</select></div>' +
+    '<div class="field"><label for="f-format">Format</label><select id="f-format">' + opt(FORMATS, p.format) + '</select></div></div>' +
+    '<div class="grid2"><div class="field"><label for="f-due">Due</label><input id="f-due" type="date" required value="' + esc(p.due) + '"></div>' +
+    '<div class="field"><label for="f-impr">Impressions so far</label><input id="f-impr" type="number" min="0" value="' + (p.impressions || 0) + '"></div></div>' +
+    '<div class="actions"><button class="btn primary" type="submit">' + (isNew ? 'Add piece' : 'Save') + '</button><button class="btn" type="button" data-action="close">Cancel</button><span class="sp"></span>' +
+    (isNew ? '' : '<button class="btn danger" type="button" data-action="delete">' + (ui.confirmDelete ? 'Click again to delete' : 'Delete') + '</button>') + '</div></form></div>';
+}
+
+function render() {
+  const prev = document.activeElement && document.activeElement.id;
+  document.getElementById('app').innerHTML = header() + (state.view === 'board' ? board() : stats()) +
+    '<p class="foot">Built by Kushagra Shukla. Everything you change is saved in this browser.</p>' + (ui.editing !== undefined ? sheet() : '');
+  if (ui.editing !== undefined) { const t = document.getElementById('f-title'); if (t) t.focus(); }
+  else if (prev) { const el = document.getElementById(prev); if (el) el.focus(); }
+}
+
+function movePiece(id, stage) {
+  const p = state.pieces.find(x => x.id === id);
+  if (!p || p.status === stage) return;
+  p.status = stage;
+  p.postedOn = stage === 'posted' ? TODAY : null;
+  save(); render();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-action]');
+  if (!t) return;
+  const a = t.dataset.action;
+  if (a === 'move' || a === 'filter-owner' || a === 'filter-client' || a === 'goal-pieces' || a === 'goal-impr' || a === 'rename') return;
+  if (a === 'close-scrim') { if (e.target !== t) return; ui.editing = undefined; ui.confirmDelete = false; render(); return; }
+  if (a === 'view') { state.view = t.dataset.view; save(); render(); }
+  else if (a === 'new') { ui.editing = null; render(); }
+  else if (a === 'edit') { ui.editing = t.dataset.id; ui.confirmDelete = false; render(); }
+  else if (a === 'close') { ui.editing = undefined; ui.confirmDelete = false; render(); }
+  else if (a === 'delete') {
+    if (!ui.confirmDelete) { ui.confirmDelete = true; render(); return; }
+    state.pieces = state.pieces.filter(p => p.id !== ui.editing);
+    ui.editing = undefined; ui.confirmDelete = false; save(); render();
+  }
+  else if (a === 'reset') { uid = 1; state = freshState(); ui.confirmClear = false; save(); render(); }
+  else if (a === 'clear') {
+    if (!ui.confirmClear) { ui.confirmClear = true; render(); return; }
+    state.pieces = []; ui.confirmClear = false; save(); render();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && ui.editing !== undefined) { ui.editing = undefined; ui.confirmDelete = false; render(); }
+  if (e.key === 'Enter' && e.target.matches && e.target.matches('.card')) { ui.editing = e.target.dataset.id; render(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target, a = t.dataset && t.dataset.action;
+  if (!a) return;
+  if (a === 'move') movePiece(t.dataset.id, t.value);
+  else if (a === 'filter-owner') { ui.owner = t.value; render(); }
+  else if (a === 'filter-client') { ui.client = t.value; render(); }
+  else if (a === 'goal-pieces') { const v = parseInt(t.value, 10); if (v > 0) { state.goals.pieces = v; save(); } render(); }
+  else if (a === 'goal-impr') { const v = parseInt(t.value, 10); if (v > 0) { state.goals.impressions = v; save(); } render(); }
+  else if (a === 'rename') { state.team[+t.dataset.i] = t.value.trim() || state.team[+t.dataset.i]; save(); render(); }
+});
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'sheet-form') return;
+  e.preventDefault();
+  const v = id => document.getElementById(id).value;
+  const data = { title: v('f-title').trim(), client: v('f-client').trim(), owner: +v('f-owner'), platform: v('f-platform'), format: v('f-format'), status: v('f-status'), due: v('f-due'), impressions: Math.max(0, parseInt(v('f-impr'), 10) || 0) };
+  if (!data.title || !data.client || !data.due) return;
+  if (ui.editing === null) {
+    data.id = 'p' + (uid++); data.postedOn = data.status === 'posted' ? TODAY : null;
+    state.pieces.push(data);
+  } else {
+    const p = state.pieces.find(x => x.id === ui.editing);
+    const was = p.status;
+    Object.assign(p, data);
+    if (data.status === 'posted' && was !== 'posted') p.postedOn = TODAY;
+    if (data.status !== 'posted') p.postedOn = null;
+  }
+  ui.editing = undefined; ui.confirmDelete = false; save(); render();
+});
+
+let dragId = null;
+document.addEventListener('dragstart', e => {
+  const c = e.target.closest && e.target.closest('.card');
+  if (!c) return;
+  dragId = c.dataset.id; c.classList.add('dragging');
+  try { e.dataTransfer.setData('text/plain', dragId); e.dataTransfer.effectAllowed = 'move'; } catch (x) {}
+});
+document.addEventListener('dragend', () => { dragId = null; document.querySelectorAll('.dragging,.over').forEach(el => el.classList.remove('dragging', 'over')); });
+document.addEventListener('dragover', e => {
+  const col = e.target.closest && e.target.closest('.col');
+  if (!col || !dragId) return;
+  e.preventDefault();
+  document.querySelectorAll('.col.over').forEach(el => { if (el !== col) el.classList.remove('over'); });
+  col.classList.add('over');
+});
+document.addEventListener('drop', e => {
+  const col = e.target.closest && e.target.closest('.col');
+  if (!col || !dragId) return;
+  e.preventDefault();
+  const id = dragId; dragId = null;
+  movePiece(id, col.dataset.stage);
+});
+
+render();
+</script>
+</body>
+</html>
